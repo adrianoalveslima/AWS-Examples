@@ -3,8 +3,12 @@
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "remoteUser": "vscode",
 
+  "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/git-lfs:1": {}
+  },
+
   "postCreateCommand": "bash .devcontainer/scripts/setup.sh",
-  "postStartCommand": "bash .devcontainer/scripts/post-start.sh",
 
   "customizations": {
     "vscode": {
