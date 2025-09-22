@@ -1,0 +1,29 @@
+{
+  "name": "Meu Codespace",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "remoteUser": "vscode",
+
+  // 1x por criação do container
+  "onCreateCommand": "bash .devcontainer/scripts/init.sh oncreate",
+
+  // Após criação (pode repetir em rebuilds)
+  "postCreateCommand": "bash .devcontainer/scripts/init.sh postcreate",
+
+  // Toda vez que iniciar o container
+  "postStartCommand": "bash .devcontainer/scripts/post-start.sh",
+
+  // Quando o VS Code anexa ao container (útil p/ CLI do GitHub, extensões, etc.)
+  "postAttachCommand": "bash .devcontainer/scripts/post-attach.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "github.vscode-github-actions",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}
