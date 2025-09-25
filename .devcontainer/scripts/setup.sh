@@ -49,3 +49,5 @@ unzip -q awscliv2.zip
 $SUDO ./aws/install --update || $SUDO ./aws/install
 
 echo "[setup] Concluído: $(aws --version)"
+
+$SUDO apt-get install tree
