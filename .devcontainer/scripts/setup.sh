@@ -51,3 +51,32 @@ $SUDO ./aws/install --update || $SUDO ./aws/install
 echo "[setup] Concluído: $(aws --version)"
 
 $SUDO apt-get install tree
+
+# https://learn.microsoft.com/en-us/powershell/scripting/install/install-ubuntu?view=powershell-7.5
+$SUDO apt-get update
+
+# Install pre-requisite packages.
+$SUDO apt-get install -y wget apt-transport-https software-properties-common
+
+
+# Get the version of Ubuntu
+source /etc/os-release
+
+# Download the Microsoft repository keys
+wget -q https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb
+
+# Register the Microsoft repository keys
+$SUDO dpkg -i packages-microsoft-prod.deb
+
+# Delete the Microsoft repository keys file
+rm packages-microsoft-prod.deb
+
+# Update the list of packages after we added packages.microsoft.com
+$SUDO apt-get update
+
+###################################
+# Install PowerShell
+$SUDO apt-get install -y powershell
+
+# pwsh
+# Install-Module -Name AWS.Tools.Installer
