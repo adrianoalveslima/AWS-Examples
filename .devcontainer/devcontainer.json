@@ -19,6 +19,7 @@
     }
   },
   "containerEnv": {
-    "AWS_CLI_AUTO_PROMPT": "on-partial"
+    "AWS_CLI_AUTO_PROMPT": "on-partial",
+    "MAVEN_VERSION": "3.9.9" 
   }
 }

@@ -222,8 +222,8 @@ $SUDO update-alternatives --set jar   "${JAVA_HOME_DIR}/bin/jar"
 PROFILE_D="/etc/profile.d/java-home.sh"
 if ! grep -q "${JAVA_HOME_DIR}" "${PROFILE_D}" 2>/dev/null; then
   echo "Exportando JAVA_HOME em ${PROFILE_D}"
-  echo "export JAVA_HOME='${JAVA_HOME_DIR}'" | sudo tee "${PROFILE_D}" >/dev/null
-  echo 'export PATH="$JAVA_HOME/bin:$PATH"'   | sudo tee -a "${PROFILE_D}" >/dev/null
+  echo "export JAVA_HOME='${JAVA_HOME_DIR}'" | $SUDO tee "${PROFILE_D}" >/dev/null
+  echo 'export PATH="$JAVA_HOME/bin:$PATH"'   | $SUDO tee -a "${PROFILE_D}" >/dev/null
 fi
 
 # ===== Verificação =====
@@ -231,3 +231,121 @@ echo "java -version:"
 java -version
 echo "javac -version:"
 javac -version
+
+MAVEN_VERSION="${MAVEN_VERSION:-}"
+MAVEN_PARENT="/opt/maven"
+MAVEN_LINK="${MAVEN_PARENT}/apache-maven"   # symlink p/ versão atual
+PROFILE_D="/etc/profile.d/maven.sh"
+LOCAL_REPO="/workspaces/.m2/repository"     # cache persistente por projeto
+SETTINGS_XML="${HOME}/.m2/settings.xml"
+
+$SUDO apt-get update -y
+$SUDO apt-get install -y --no-install-recommends curl tar ca-certificates
+
+# =========================
+# Instalação do Maven 3.2.0 (tarball oficial)
+# =========================
+install_from_tarball() {
+  local ver="$1"
+  local tgz="apache-maven-${ver}-bin.tar.gz"
+  local url_archive="https://archive.apache.org/dist/maven/maven-3/${ver}/binaries/${tgz}"
+  local dest="${MAVEN_PARENT}/apache-maven-${ver}"
+
+  sudo mkdir -p "${MAVEN_PARENT}"
+
+  if [ ! -d "${dest}" ]; then
+    echo "Baixando Maven ${ver}..."
+    curl -fsSL "${url_archive}" -o "/tmp/${tgz}"
+    echo "Instalando em ${dest}..."
+    sudo tar -xzf "/tmp/${tgz}" -C "${MAVEN_PARENT}"
+    sudo rm -f "/tmp/${tgz}"
+  else
+    echo "Maven ${ver} já presente em ${dest}"
+  fi
+
+  # Symlink para versão atual
+  if [ -L "${MAVEN_LINK}" ] || [ -d "${MAVEN_LINK}" ]; then
+    sudo rm -rf "${MAVEN_LINK}"
+  fi
+  sudo ln -s "${dest}" "${MAVEN_LINK}"
+
+  # Binário em PATH rápido
+  sudo ln -sf "${MAVEN_LINK}/bin/mvn" /usr/local/bin/mvn
+}
+
+install_from_apt() {
+  if ! dpkg -s maven >/dev/null 2>&1; then
+    sudo apt-get install -y maven
+  else
+    echo "maven (APT) já instalado."
+  fi
+
+  # Descobre instalação APT para setar MAVEN_HOME
+  if command -v mvn >/dev/null 2>&1; then
+    local mvn_path
+    mvn_path="$(command -v mvn)"
+    # tenta deduzir a pasta "apache-maven-*/" quando é tarball; no APT nem sempre há MAVEN_HOME claro
+    if [ -L "${MAVEN_LINK}" ] || [ -d "${MAVEN_LINK}" ]; then
+      : # nada: já temos /opt/maven/apache-maven de outra instalação
+    else
+      # cria um diretório "falso" para MAVEN_HOME apontar para o binário pelo menos
+      sudo mkdir -p "${MAVEN_PARENT}"
+      if [ ! -e "${MAVEN_LINK}" ]; then
+        sudo ln -s "$(dirname "$(dirname "${mvn_path}")")" "${MAVEN_LINK}"
+      fi
+    fi
+  fi
+}
+
+
+if [ -n "${MAVEN_VERSION}" ]; then
+  install_from_tarball "${MAVEN_VERSION}"
+else
+  install_from_apt
+fi
+
+if [ ! -f "${PROFILE_D}" ] || ! grep -q "MAVEN_HOME" "${PROFILE_D}"; then
+  echo "Configurando ${PROFILE_D}"
+  {
+    echo "export MAVEN_HOME='${MAVEN_LINK}'"
+    echo 'export MAVEN_OPTS="${MAVEN_OPTS:--Xmx1g -XX:+UseG1GC}"'
+    echo 'export PATH="$MAVEN_HOME/bin:$PATH"'
+  } | sudo tee "${PROFILE_D}" >/dev/null
+fi
+
+# Torna disponível já nesta sessão
+export MAVEN_HOME="${MAVEN_LINK}"
+export MAVEN_OPTS="${MAVEN_OPTS:--Xmx1g -XX:+UseG1GC}"
+export PATH="$MAVEN_HOME/bin:$PATH"
+
+# =========================
+# Cache/Repo local persistente
+# =========================
+mkdir -p "$(dirname "${SETTINGS_XML}")" "${LOCAL_REPO}"
+if [ ! -f "${SETTINGS_XML}" ] || ! grep -q "<localRepository>" "${SETTINGS_XML}"; then
+  cat > "${SETTINGS_XML}" <<EOF
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <localRepository>${LOCAL_REPO}</localRepository>
+  <!--
+  <proxies>
+    <proxy>
+      <id>proxy</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <host>proxy.local</host>
+      <port>3128</port>
+    </proxy>
+  </proxies>
+  -->
+</settings>
+EOF
+fi
+
+# =========================
+# Verificação
+# =========================
+echo "Maven:"
+mvn -v || { echo "Falha ao executar mvn"; exit 1; }
