@@ -7,6 +7,14 @@ if command -v sudo >/dev/null 2>&1; then
   SUDO="sudo"
 fi
 
+# install terraform
+$SUDO apt-get update && $SUDO apt-get install -y gnupg software-properties-common
+wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | $SUDO tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | $SUDO tee /etc/apt/sources.list.d/hashicorp.list
+$SUDO apt update
+$SUDO apt-get install terraform
+
 # Instalar deps necessários (curl/unzip) se faltar
 if ! command -v unzip >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
